@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-extrabold">Resumen de Tesorería</h2>
+    {% if user.role == 'ADMIN' or user.role == 'TREASURER' %}
+    <div class="flex gap-2">
+        <a href="{% url 'create_goal' %}" class="btn btn-secondary">Crear Meta</a>
+        <a href="{% url 'create_transaction' %}" class="btn btn-primary">Registrar Transacción</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="card bg-green-100 p-6 text-green-900 shadow">
+        <h3 class="text-lg font-bold">Total Ingresos</h3>
+        <p class="text-3xl font-extrabold">${{ income|floatformat:2 }}</p>
+    </div>
+    <div class="card bg-red-100 p-6 text-red-900 shadow">
+        <h3 class="text-lg font-bold">Total Gastos</h3>
+        <p class="text-3xl font-extrabold">${{ expense|floatformat:2 }}</p>
+    </div>
+    <div class="card bg-blue-100 p-6 text-blue-900 shadow">
+        <h3 class="text-lg font-bold">Balance General</h3>
+        <p class="text-3xl font-extrabold">${{ balance|floatformat:2 }}</p>
+    </div>
+</div>
+
+{% if transactions %}
+<h2 class="text-2xl font-bold mb-4">Metas Financieras</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    {% for goal in goals %}
+    <div class="card bg-white p-6 shadow">
+        <h3 class="font-bold text-lg">{{ goal.title }}</h3>
+        <progress class="progress progress-primary w-full" value="{{ goal.progress_percentage }}" max="100"></progress>
+        <p class="text-sm mt-2">${{ goal.current_amount|floatformat:2 }} / ${{ goal.target_amount|floatformat:2 }}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card bg-white shadow-2xl p-6">
+    <h2 class="text-2xl font-bold mb-4">Últimas Transacciones</h2>
+    <table class="table w-full">
+        <thead><tr><th>Fecha</th><th>Padre</th><th>Descripción</th><th>Monto (Divisa)</th><th>Acciones</th></tr></thead>
+        <tbody>
+            {% for trans in transactions %}
+            <tr>
+                <td>{{ trans.created_at|date:"d/m/Y" }}</td>
+                <td>{{ trans.parent.first_name }}</td>
+                <td>{{ trans.description }}</td>
+                <td>${{ trans.amount_divisa|floatformat:2 }}</td>
+                <td class="flex gap-2">
+                    <a href="{% url 'transaction_detail' trans.id %}" class="btn btn-xs btn-info">Ver</a>
+                    <a href="{% url 'transaction_edit' trans.id %}" class="btn btn-xs btn-warning">Editar</a>
+                    <a href="{% url 'transaction_delete' trans.id %}" class="btn btn-xs btn-error">Eliminar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
+

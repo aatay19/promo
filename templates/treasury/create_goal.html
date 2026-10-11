@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 border border-slate-100 max-w-lg mx-auto">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-6 text-center">Crear Nueva Meta</h2>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-control w-full">
+                <label class="label font-semibold text-slate-700">{{ field.label }}</label>
+                {{ field }}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full mt-6 text-lg">Guardar Meta</button>
+    </form>
+</div>
+{% endblock %}

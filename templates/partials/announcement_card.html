@@ -1,0 +1,13 @@
+<div class="announcement-card" id="announcement-{{ announcement.id }}">
+    <h3>{{ announcement.title }}</h3>
+    <p>{{ announcement.content }}</p>
+    <div class="vote-counts">
+        <span>A favor: {{ announcement.agree_count }}</span>
+        <span>En contra: {{ announcement.disagree_count }}</span>
+    </div>
+    <form hx-post="{% url 'vote' announcement.id %}" hx-target="#announcement-{{ announcement.id }}">
+        {% csrf_token %}
+        <button type="submit" name="vote_type" value="AGREE">A favor</button>
+        <button type="submit" name="vote_type" value="DISAGREE">En contra</button>
+    </form>
+</div>

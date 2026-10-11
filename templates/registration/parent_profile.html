@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 mb-8">
+    <h2 class="text-3xl font-extrabold mb-4">Mi Perfil</h2>
+    <p>Bienvenido, {{ user.first_name }} {{ user.last_name }}.</p>
+    <a href="{% url 'parent_payment' %}" class="btn btn-primary mt-4">Realizar Abono</a>
+</div>
+
+<div class="card bg-white shadow-2xl p-8 mb-8">
+    <h2 class="text-2xl font-bold mb-4">Mis Abonos</h2>
+    <table class="table w-full">
+        <thead><tr><th>Fecha</th><th>Descripción</th><th>Monto</th></tr></thead>
+        <tbody>
+            {% for trans in transactions %}
+            <tr>
+                <td>{{ trans.created_at|date:"d/m/Y" }}</td>
+                <td>{{ trans.description }}</td>
+                <td>${{ trans.amount_divisa|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card bg-white shadow-2xl p-8">
+    <h2 class="text-2xl font-bold mb-4">Metas Cumplidas</h2>
+    <ul>
+        {% for goal in goals %}
+        <li>✅ {{ goal.title }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

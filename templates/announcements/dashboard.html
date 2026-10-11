@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-extrabold text-slate-900">Noticias</h1>
+    {% if user.role == 'ADMIN' or user.role == 'TREASURER' %}
+        <a href="{% url 'crear_noticia' %}" class="btn btn-primary">Crear Noticia</a>
+    {% endif %}
+</div>
+
+<div class="overflow-y-auto max-h-[75vh] pr-0 md:pr-2 space-y-4 md:space-y-6">
+    <!-- Metas Financieras -->
+    <div class="bg-white p-4 rounded-xl shadow-md border border-slate-200 mb-6">
+        <h2 class="text-lg font-bold mb-3">Metas Financieras</h2>
+        {% for goal in goals %}
+        <div class="mb-3">
+            <div class="flex justify-between text-sm mb-1">
+                <span>{{ goal.title }}</span>
+                <span>{{ goal.progress_percentage|floatformat:0 }}%</span>
+            </div>
+            <progress class="progress {% if goal.progress_percentage >= 100 %}progress-success{% else %}progress-primary{% endif %} w-full" value="{{ goal.progress_percentage }}" max="100"></progress>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% for anuncio in anuncios %}
+        <div class="card bg-white shadow-lg border border-slate-200 p-4 md:p-6 rounded-xl md:rounded-2xl">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-900 mb-2">{{ anuncio.title }}</h2>
+            <p class="text-slate-600 mb-4 text-sm md:text-base">{{ anuncio.content }}</p>
+            
+            {% if anuncio.image %}
+                <label for="image-modal-{{anuncio.id}}" class="cursor-pointer">
+                    <img src="{{ anuncio.image.url }}" alt="Imagen de noticia" class="rounded-lg mb-4 max-h-40 w-auto mx-auto object-contain hover:opacity-80 transition">
+                </label>
+                
+                <!-- Modal para ampliar imagen -->
+                <input type="checkbox" id="image-modal-{{anuncio.id}}" class="modal-toggle" />
+                <div class="modal" onclick="document.getElementById('image-modal-{{anuncio.id}}').checked = false">
+                    <div class="modal-box w-11/12 max-w-5xl p-0" onclick="event.stopPropagation()">
+                        <img src="{{ anuncio.image.url }}" alt="Imagen ampliada" class="w-full h-auto">
+                        <div class="modal-action absolute top-0 right-0 p-2">
+                            <label for="image-modal-{{anuncio.id}}" class="btn btn-circle btn-sm">✕</label>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div class="flex items-center gap-4 text-sm text-slate-500 mb-4">
+                <span class="badge badge-neutral">{{ anuncio.get_category_display }}</span>
+                <span>Por: {{ anuncio.created_by.first_name }}</span>
+                <span class="ml-auto text-xs italic">{{ anuncio.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+
+            <div class="flex items-center gap-4 border-t pt-4">
+                <form hx-post="{% url 'vote' anuncio.id %}" hx-target="#vote-section-{{ anuncio.id }}" id="vote-section-{{ anuncio.id }}" class="flex gap-2">
+                    {% csrf_token %}
+                    {% if not anuncio.user_has_voted %}
+                        <button type="submit" name="vote_type" value="AGREE" class="btn btn-sm btn-outline btn-success">👍</button>
+                        <button type="submit" name="vote_type" value="DISAGREE" class="btn btn-sm btn-outline btn-error">👎</button>
+                    {% else %}
+                        <span class="text-sm font-semibold">Ya votaste</span>
+                    {% endif %}
+                </form>
+                <div class="flex gap-2 ml-auto">
+                    <span class="text-green-600 font-semibold">👍 {{ anuncio.agree_count }}</span>
+                    <span class="text-red-600 font-semibold">👎 {{ anuncio.disagree_count }}</span>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="text-center py-10 text-slate-500">No hay noticias publicadas.</div>
+    {% endfor %}
+</div>
+{% endblock %}

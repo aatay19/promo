@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 border border-slate-100 max-w-lg mx-auto">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-6">Detalle de Transacción</h2>
+    <div class="space-y-4">
+        <p><strong>Padre:</strong> {{ transaction.parent.first_name }} {{ transaction.parent.last_name }}</p>
+        <p><strong>Tipo:</strong> {{ transaction.get_transaction_type_display }}</p>
+        <p><strong>Monto (BS):</strong> {{ transaction.amount }}</p>
+        <p><strong>Monto (Divisa):</strong> ${{ transaction.amount_divisa }}</p>
+        <p><strong>Método:</strong> {{ transaction.get_method_display }}</p>
+        <p><strong>Referencia:</strong> {{ transaction.reference }}</p>
+        {% if transaction.receipt_file %}
+            <p><strong>Comprobante:</strong></p>
+            <img src="{{ transaction.receipt_file.url }}" alt="Comprobante" class="max-w-full rounded-lg shadow">
+        {% endif %}
+    </div>
+    <div class="mt-8">
+        <a href="{% url 'treasury' %}" class="btn btn-ghost">Volver</a>
+    </div>
+</div>
+{% endblock %}

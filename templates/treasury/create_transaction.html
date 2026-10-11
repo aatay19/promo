@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 border border-slate-100 max-w-lg mx-auto">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-6 text-center">Registrar Transacción</h2>
+    <form method="post" enctype="multipart/form-data" class="space-y-4" id="transactionForm">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-control w-full">
+                <label class="label font-semibold text-slate-700">{{ field.label }}</label>
+                {{ field }}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full mt-6 text-lg">Guardar Transacción</button>
+    </form>
+</div>
+
+<script>
+    const form = document.getElementById('transactionForm');
+    const amountInput = form.querySelector('[name="amount"]');
+    const tasaInput = form.querySelector('[name="tasa_bcv"]');
+    const divisaInput = form.querySelector('[name="monto_divisas"]');
+
+    function calculate() {
+        const amount = parseFloat(amountInput.value) || 0;
+        const tasa = parseFloat(tasaInput.value) || 0;
+        if (tasa > 0) {
+            divisaInput.value = (amount / tasa).toFixed(2);
+        } else {
+            divisaInput.value = '0.00';
+        }
+    }
+
+    amountInput.addEventListener('input', calculate);
+    tasaInput.addEventListener('input', calculate);
+</script>
+{% endblock %}

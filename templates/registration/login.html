@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 border border-slate-100">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-6 text-center">Iniciar Sesión</h2>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-control w-full">
+                <label class="label font-semibold text-slate-700">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="text-xs text-slate-500 mt-1">{{ field.help_text }}</small>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full mt-6 text-lg">Entrar</button>
+    </form>
+    <div class="divider">o</div>
+    <p class="text-center text-slate-600">¿No tienes cuenta? <a href="{% url 'signup' %}" class="link link-primary font-bold">Crear usuario</a></p>
+</div>
+{% endblock %}

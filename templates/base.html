@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="corporate" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promo 6to Grado</title>
+    <!-- Tailwind + DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX + Alpine.js -->
+    <script src="https://unpkg.com/htmx.org@1.9.11"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col font-sans text-slate-800">
+
+    <nav class="navbar bg-slate-900 text-white shadow-lg sticky top-0 z-50 px-2 md:px-4">
+        <div class="flex-1">
+            <a href="{% url 'noticias' %}" class="text-xl font-bold text-primary">Promo 6to</a>
+        </div>
+        <div class="flex-none gap-2 md:gap-4">
+            {% if user.is_authenticated %}
+                <!-- Menu para pantallas medianas/grandes -->
+                <div class="hidden md:flex menu menu-horizontal px-1 gap-2">
+                    <li><a href="{% url 'noticias' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Noticias</a></li>
+                    <li><a href="{% url 'treasury' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Tesorería</a></li>
+                    <li><a href="{% url 'parent_profile' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Perfil</a></li>
+                    {% if user.role == 'ADMIN' %}
+                        <li><a href="{% url 'user_list' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Usuarios</a></li>
+                    {% endif %}
+                </div>
+                
+                <!-- Menu hamburguesa para móviles -->
+                <div class="dropdown dropdown-end md:hidden">
+                    <label tabindex="0" class="btn btn-ghost btn-sm">☰</label>
+                    <ul tabindex="0" class="menu dropdown-content mt-3 z-[1] p-2 shadow bg-slate-800 rounded-box w-52 text-white">
+                        <li><a href="{% url 'noticias' %}">Noticias</a></li>
+                        <li><a href="{% url 'treasury' %}">Resumen Tesorería</a></li>
+                        <li><a href="{% url 'parent_profile' %}">Perfil</a></li>
+                        {% if user.role == 'ADMIN' %}
+                            <li><a href="{% url 'user_list' %}">Usuarios</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="flex items-center gap-2 border-l border-slate-700 pl-2 md:pl-4">
+                    <span class="hidden md:block text-sm font-medium opacity-90">{{ user.first_name }}</span>
+                    <form action="{% url 'logout' %}" method="post" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-error btn-outline">Salir</button>
+                    </form>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-sm btn-primary">Iniciar Sesión</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="flex-grow p-4 max-w-6xl mx-auto w-full">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %} shadow-lg mb-4">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Toast Container (Global) -->
+    <div id="toast-container" class="toast toast-bottom toast-end z-50"></div>
+
+    <footer class="footer p-4 bg-slate-900 text-slate-400 justify-center">
+        <p>Gestión 6to Grado - 2026</p>
+    </footer>
+</body>
+</html>

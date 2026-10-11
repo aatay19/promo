@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 border border-slate-100">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-6 text-center">Crear Cuenta</h2>
+    
+    {% if form.errors %}
+        <div class="alert alert-error shadow-lg mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div>
+                <h3 class="font-bold">Error en el registro</h3>
+                <ul class="text-sm">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-control w-full">
+                <label class="label font-semibold text-slate-700">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="text-xs text-slate-500 mt-1">{{ field.help_text }}</small>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full mt-6 text-lg">Registrarse</button>
+    </form>
+    <div class="divider">o</div>
+    <p class="text-center text-slate-600">¿Ya tienes cuenta? <a href="{% url 'login' %}" class="link link-primary font-bold">Iniciar Sesión</a></p>
+</div>
+{% endblock %}

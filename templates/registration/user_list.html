@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8">
+    <h2 class="text-3xl font-extrabold mb-6">Usuarios Registrados</h2>
+    <div class="overflow-x-auto">
+        <table class="table w-full">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Representado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in usuarios %}
+                <tr>
+                    <td>{{ usuario.first_name }} {{ usuario.last_name }}</td>
+                    <td>{{ usuario.email }}</td>
+                    <td>{{ usuario.get_role_display }}</td>
+                    <td>
+                        {% for rel in usuario.parentstudentrel_set.all %}
+                            {{ rel.student.first_name }} {{ rel.student.last_name }}
+                        {% endfor %}
+                    </td>
+                    <td class="flex gap-2">
+                        <label for="view-modal-{{usuario.id}}" class="btn btn-xs btn-info">Ver</label>
+                        <a href="{% url 'user_edit' usuario.id %}" class="btn btn-xs btn-warning">Editar</a>
+                        <a href="{% url 'user_delete' usuario.id %}" class="btn btn-xs btn-error">Eliminar</a>
+                    </td>
+                </tr>
+
+                <!-- Modal Ver -->
+                <input type="checkbox" id="view-modal-{{usuario.id}}" class="modal-toggle" />
+                <div class="modal">
+                    <div class="modal-box">
+                        <h3 class="font-bold text-lg">Detalles de {{ usuario.first_name }}</h3>
+                        <p class="py-4">
+                            <strong>Email:</strong> {{ usuario.email }}<br>
+                            <strong>Rol:</strong> {{ usuario.get_role_display }}<br>
+                            <strong>Representado:</strong> 
+                            {% for rel in usuario.parentstudentrel_set.all %}
+                                {{ rel.student.first_name }} {{ rel.student.last_name }}
+                            {% endfor %}
+                        </p>
+                        <div class="modal-action">
+                            <label for="view-modal-{{usuario.id}}" class="btn">Cerrar</label>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

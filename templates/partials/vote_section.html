@@ -1,0 +1,10 @@
+{% if not anuncio.user_has_voted %}
+    <button hx-post="{% url 'vote' anuncio.id %}" hx-target="#vote-section-{{ anuncio.id }}" name="vote_type" value="AGREE" class="btn btn-sm btn-outline btn-success">👍</button>
+    <button hx-post="{% url 'vote' anuncio.id %}" hx-target="#vote-section-{{ anuncio.id }}" name="vote_type" value="DISAGREE" class="btn btn-sm btn-outline btn-error">👎</button>
+{% else %}
+    <span class="text-sm font-semibold">Ya votaste</span>
+{% endif %}
+<div class="flex gap-2 ml-auto">
+    <span class="text-green-600 font-semibold">👍 {{ anuncio.agree_count }}</span>
+    <span class="text-red-600 font-semibold">👎 {{ anuncio.disagree_count }}</span>
+</div>
