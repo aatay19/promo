@@ -10,15 +10,26 @@ class SignUpForm(UserCreationForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        placeholders = {
+            'username': 'Ej: juanito2024',
+            'first_name': 'Ej: Juan',
+            'last_name': 'Ej: Pérez',
+            'represented_student': 'Ej: Juan Pérez (Estudiante)',
+            'password1': 'Mínimo 8 caracteres',
+            'password2': 'Repita la contraseña',
+        }
+        for name, field in self.fields.items():
             field.widget.attrs.update({'class': 'input input-bordered w-full'})
+            if name in placeholders:
+                field.widget.attrs.update({'placeholder': placeholders[name]})
             if hasattr(field, 'error_messages'):
                 for key in field.error_messages:
                     if key == 'required':
                         field.error_messages[key] = f"El campo {field.label} es obligatorio."
                     elif key == 'invalid':
                         field.error_messages[key] = f"El valor introducido en {field.label} no es válido."
-        
+
+
         if 'password1' in self.fields:
             self.fields['password1'].help_text = "La contraseña debe tener al menos 8 caracteres."
             self.fields['password1'].error_messages['password_too_short'] = "La contraseña es demasiado corta."
@@ -26,13 +37,14 @@ class SignUpForm(UserCreationForm):
 
     class Meta:
         model = CustomUser
-        fields = ['email', 'first_name', 'last_name']
+        fields = ['username', 'first_name', 'last_name']
         error_messages = {
-            'email': {
-                'unique': "Ya existe un usuario registrado con este correo electrónico.",
-                'required': "El correo electrónico es obligatorio.",
+            'username': {
+                'unique': "Ya existe un usuario con este nombre.",
+                'required': "El nombre de usuario es obligatorio.",
             },
         }
+
 
     def save(self, commit=True):
         user = super().save(commit=commit)
@@ -52,7 +64,6 @@ class SignUpForm(UserCreationForm):
         return user
 
 class TransactionForm(forms.ModelForm):
-    # Campo calculado de solo lectura
     monto_divisas = forms.DecimalField(
         required=False, 
         disabled=True, 
@@ -106,7 +117,7 @@ class UserUpdateForm(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        fields = ['first_name', 'last_name', 'email', 'role']
+        fields = ['first_name', 'last_name', 'username', 'role']
 
 class AnnouncementForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -118,6 +129,45 @@ class AnnouncementForm(forms.ModelForm):
         model = Announcement
         fields = ['title', 'content', 'category', 'image']
 
+class ParentPaymentForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['goal'].label_from_instance = lambda obj: obj.title
+
+    class Meta:
+        model = Transaction
+        fields = ['goal', 'receipt_file']
+        widgets = {
+            'goal': forms.Select(attrs={'class': 'select select-bordered w-full'}),
+            'receipt_file': forms.FileInput(attrs={'class': 'file-input file-input-bordered w-full'}),
+        }
+        labels = {
+            'goal': 'Meta a abonar',
+            'receipt_file': 'Captura del comprobante',
+        }
+
+class ExpenseForm(forms.ModelForm):
+    monto_divisas = forms.DecimalField(
+        required=False, 
+        disabled=True, 
+        label="Monto en Divisas ($)",
+        widget=forms.NumberInput(attrs={'class': 'input input-bordered w-full', 'readonly': 'readonly'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            if name == 'method':
+                field.widget.attrs.update({'class': 'select select-bordered w-full'})
+            elif name != 'monto_divisas':
+                field.widget.attrs.update({'class': 'input input-bordered w-full'})
+        if self.instance and self.instance.pk:
+            self.fields['monto_divisas'].initial = self.instance.amount_divisa
+
+    class Meta:
+        model = Transaction
+        fields = ['amount', 'tasa_bcv', 'monto_divisas', 'method', 'reference', 'description', 'receipt_file']
+
 class FinancialGoalForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -126,4 +176,4 @@ class FinancialGoalForm(forms.ModelForm):
 
     class Meta:
         model = FinancialGoal
-        fields = ['title', 'target_amount', 'max_per_parent']
+        fields = ['title', 'target_amount']

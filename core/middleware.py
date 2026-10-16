@@ -7,14 +7,14 @@ class RequireLoginMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Rutas que no requieren login
         public_paths = [
             reverse('login'),
             reverse('signup'),
-            '/admin/',  # El admin tiene su propio sistema de auth
+            '/admin/',
+            settings.STATIC_URL,
+            settings.MEDIA_URL,
         ]
 
-        # Verifica si el usuario NO está autenticado y la ruta NO es pública
         if not request.user.is_authenticated and not any(request.path.startswith(path) for path in public_paths):
             return redirect(settings.LOGIN_URL)
 

@@ -7,30 +7,27 @@ from decimal import Decimal
 
 # --- UserManager ---
 class CustomUserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
-        if not email:
-            raise ValueError('El email es obligatorio')
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+    def create_user(self, username, password=None, **extra_fields):
+        if not username:
+            raise ValueError('El nombre de usuario es obligatorio')
+        user = self.model(username=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, username, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        return self.create_user(email, password, **extra_fields)
+        extra_fields.setdefault('role', 'ADMIN')
+        return self.create_user(username, password, **extra_fields)
 
 # --- Usuarios ---
 class CustomUser(AbstractUser):
-    username = None
-    email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=20, blank=True)
     ROLE_CHOICES = [('PARENT', 'Padre'), ('TREASURER', 'Tesorero'), ('ADMIN', 'Admin')]
     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='PARENT')
     
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = []
     
     objects = CustomUserManager()
 
@@ -46,7 +43,7 @@ class ParentStudentRel(models.Model):
 
 # --- Anuncios ---
 class Announcement(models.Model):
-    CATEGORY_CHOICES = [('GENERAL', 'General'), ('REUNION', 'Reunión'), ('PAGO', 'Pago')]
+    CATEGORY_CHOICES = [('GENERAL', 'General'), ('REUNION', 'Reunión'), ('PAGO', 'Pago'), ('TESORERIA', 'Tesorería')]
     title = models.CharField(max_length=200, verbose_name="Título")
     slug = models.SlugField(unique=True, blank=True)
     content = models.TextField(verbose_name="Contenido")
@@ -62,7 +59,13 @@ class Announcement(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
+            base_slug = slugify(self.title)
+            slug = base_slug
+            counter = 1
+            while Announcement.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = slug
         super().save(*args, **kwargs)
 
     @property
@@ -95,7 +98,6 @@ class AnnouncementComment(models.Model):
 class FinancialGoal(models.Model):
     title = models.CharField(max_length=200, verbose_name="Título de la Meta")
     target_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Monto Meta (Divisa)")
-    max_per_parent = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Máximo por Padre (Divisa)")
     is_completed = models.BooleanField(default=False)
     
     @property
@@ -108,12 +110,12 @@ class FinancialGoal(models.Model):
 
 class Transaction(models.Model):
     TYPE_CHOICES = [('INCOME', 'Ingreso'), ('EXPENSE', 'Gasto')]
-    METHOD_CHOICES = [('DIVISA', 'Divisa'), ('TRANSFER', 'Transferencia'), ('PAGOMOVIL', 'Pago Móvil'), ('USDT', 'USDT')]
+    METHOD_CHOICES = [('DIVISA', 'Divisa efectivo $'), ('TRANSFER', 'Transferencia - BS'), ('PAGOMOVIL', 'Pago Movil - BS'), ('ZELLER', 'Zeller'), ('USDT', 'USDT')]
     
     transaction_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
     parent = models.ForeignKey(CustomUser, on_delete=models.CASCADE, default=1, verbose_name="Padre/Representante")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Monto (BS o $)")
-    tasa_bcv = models.DecimalField(max_digits=10, decimal_places=2, default=1, verbose_name="Tasa BCV")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Monto (BS o $)")
+    tasa_bcv = models.DecimalField(max_digits=10, decimal_places=2, default=1, null=True, blank=True, verbose_name="Tasa BCV")
     amount_divisa = models.DecimalField(max_digits=10, decimal_places=2, default=0, editable=False, verbose_name="Monto (Divisa)")
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='DIVISA', verbose_name="Método")
     reference = models.CharField(max_length=100, blank=True, null=True, verbose_name="Referencia")
@@ -124,8 +126,11 @@ class Transaction(models.Model):
     )
     goal = models.ForeignKey(FinancialGoal, on_delete=models.SET_NULL, null=True, related_name='transactions')
     recorded_by = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name='recorded_transactions')
+    is_confirmed = models.BooleanField(default=False, verbose_name="Confirmado")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        self.amount_divisa = self.amount / self.tasa_bcv if self.tasa_bcv else 0
+        amount = self.amount or Decimal('0')
+        tasa = self.tasa_bcv or Decimal('1')
+        self.amount_divisa = amount / tasa if tasa != 0 else Decimal('0')
         super().save(*args, **kwargs)

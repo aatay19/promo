@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from .models import Announcement, AnnouncementVote, AnnouncementComment, Student, ParentStudentRel, CustomUser, Transaction, FinancialGoal
-from .forms import SignUpForm, AnnouncementForm, UserUpdateForm, TransactionForm, FinancialGoalForm
+from .forms import SignUpForm, AnnouncementForm, UserUpdateForm, TransactionForm, FinancialGoalForm, ParentPaymentForm, ExpenseForm
 
 class RoleRequiredMixin(UserPassesTestMixin):
     allowed_roles = []
@@ -41,13 +41,59 @@ class NoticiasView(LoginRequiredMixin, ListView):
     context_object_name = 'anuncios'
 
     def get_queryset(self):
-        return Announcement.objects.all().prefetch_related('votes').order_by('-created_at')
+        # Limitamos a las 5 más recientes para el dashboard
+        return Announcement.objects.all().prefetch_related('votes').order_by('-created_at')[:5]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         for anuncio in context['anuncios']:
             anuncio.user_has_voted = anuncio.user_has_voted(self.request.user)
-        context['goals'] = FinancialGoal.objects.all()
+        context['todas_las_noticias'] = Announcement.objects.all().order_by('-created_at')
+        context['goals'] = FinancialGoal.objects.filter(is_completed=False)
+        
+        income = Transaction.objects.filter(transaction_type='INCOME', is_confirmed=True).aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
+        expense = Transaction.objects.filter(transaction_type='EXPENSE', is_confirmed=True).aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
+        context['income'] = income
+        context['expense'] = expense
+        context['balance'] = income - expense
+        
+        # Obtener la meta activa (primera no completada)
+        active_goal = FinancialGoal.objects.filter(is_completed=False).first()
+        context['active_goal'] = active_goal
+        
+        # Todos los padres registrados con su estado de abono
+        all_parents = CustomUser.objects.filter(role='PARENT').order_by('first_name')
+        parents_with_status = []
+        for parent in all_parents:
+            status = 'none'
+            total_paid = Decimal('0')
+            if active_goal:
+                confirmed = Transaction.objects.filter(
+                    goal=active_goal, parent=parent, transaction_type='INCOME', is_confirmed=True
+                ).first()
+                pending = Transaction.objects.filter(
+                    goal=active_goal, parent=parent, transaction_type='INCOME', is_confirmed=False
+                ).first()
+                if confirmed:
+                    status = 'confirmed'
+                    total_paid = confirmed.amount_divisa
+                elif pending:
+                    status = 'pending'
+                    total_paid = pending.amount_divisa
+            parents_with_status.append({
+                'id': parent.id,
+                'name': f"{parent.first_name} {parent.last_name}",
+                'status': status,
+                'total_paid': total_paid,
+            })
+        context['parents_status'] = parents_with_status
+        
+        # Pagos pendientes para admin/tesorero
+        if self.request.user.role in ['ADMIN', 'TREASURER']:
+            context['pending_count'] = Transaction.objects.filter(is_confirmed=False, transaction_type='INCOME').count()
+        else:
+            context['pending_count'] = 0
+        
         return context
 class TreasuryView(LoginRequiredMixin, TemplateView):
     template_name = 'treasury/treasury.html'
@@ -55,8 +101,8 @@ class TreasuryView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        income = Transaction.objects.filter(transaction_type='INCOME').aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
-        expense = Transaction.objects.filter(transaction_type='EXPENSE').aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
+        income = Transaction.objects.filter(transaction_type='INCOME', is_confirmed=True).aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
+        expense = Transaction.objects.filter(transaction_type='EXPENSE', is_confirmed=True).aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
         
         context['income'] = income
         context['expense'] = expense
@@ -64,7 +110,7 @@ class TreasuryView(LoginRequiredMixin, TemplateView):
         
         # Solo mostrar transacciones detalladas y metas si es Admin/Tesorero
         if self.request.user.role in ['ADMIN', 'TREASURER']:
-            context['transactions'] = Transaction.objects.all().order_by('-created_at')[:10]
+            context['transactions'] = Transaction.objects.filter(is_confirmed=True).order_by('-created_at')[:10]
             context['goals'] = FinancialGoal.objects.all()
         else:
             context['transactions'] = None
@@ -91,17 +137,68 @@ class TransactionCreateView(RoleRequiredMixin, CreateView):
         kwargs['is_admin_view'] = True
         return kwargs
 
+    def get_initial(self):
+        initial = super().get_initial()
+        from_payment = self.request.GET.get('from_payment')
+        if from_payment:
+            try:
+                payment = Transaction.objects.get(pk=from_payment)
+                initial['parent'] = payment.parent
+                initial['goal'] = payment.goal
+            except Transaction.DoesNotExist:
+                pass
+        return initial
+
     def form_valid(self, form):
         form.instance.recorded_by = self.request.user
         messages.success(self.request, "Transacción registrada exitosamente.")
         return super().form_valid(form)
 
-class TransactionDetailView(LoginRequiredMixin, TemplateView):
+class ExpenseCreateView(RoleRequiredMixin, CreateView):
+    model = Transaction
+    form_class = ExpenseForm
+    template_name = 'treasury/create_expense.html'
+    success_url = reverse_lazy('treasury')
+    allowed_roles = ['TREASURER', 'ADMIN']
+
+    def form_valid(self, form):
+        form.instance.transaction_type = 'EXPENSE'
+        form.instance.recorded_by = self.request.user
+        form.instance.goal = None
+        form.instance.is_confirmed = True
+        messages.success(self.request, "Gasto registrado exitosamente.")
+        return super().form_valid(form)
+
+class FinancialGoalDeleteView(RoleRequiredMixin, DeleteView):
+    model = FinancialGoal
+    template_name = 'treasury/goal_confirm_delete.html'
+    success_url = reverse_lazy('treasury')
+    allowed_roles = ['TREASURER', 'ADMIN']
+
+class TransactionDetailView(LoginRequiredMixin, UpdateView):
+    model = Transaction
+    form_class = TransactionForm
     template_name = 'treasury/transaction_detail.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['is_admin_view'] = True
+        return kwargs
+
+    def get_success_url(self):
+        return reverse_lazy('treasury')
+
+    def form_valid(self, form):
+        if not self.object.receipt_file:
+            form.add_error('receipt_file', 'El padre no ha subido el comprobante.')
+            return self.form_invalid(form)
+        self.object.is_confirmed = True
+        messages.success(self.request, "Pago confirmado exitosamente.")
+        return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['transaction'] = get_object_or_404(Transaction, pk=self.kwargs['pk'])
+        context['transaction'] = self.object
         return context
 
 class TransactionDeleteView(RoleRequiredMixin, DeleteView):
@@ -116,6 +213,11 @@ class TransactionUpdateView(RoleRequiredMixin, UpdateView):
     template_name = 'treasury/create_transaction.html'
     success_url = reverse_lazy('treasury')
     allowed_roles = ['ADMIN', 'TREASURER']
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['is_admin_view'] = True
+        return kwargs
 
 class AnnouncementCreateView(RoleRequiredMixin, CreateView):
     model = Announcement
@@ -133,16 +235,29 @@ class SignUpView(CreateView):
     template_name = 'registration/signup.html'
     success_url = reverse_lazy('login')
 
+    def form_valid(self, form):
+        messages.success(self.request, "Usuario creado exitosamente. Ahora puede iniciar sesión.")
+        return super().form_valid(form)
+
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         for field in form.fields.values():
             field.widget.attrs.update({'class': 'input input-bordered w-full'})
+        if 'username' in form.fields:
+            form.fields['username'].widget.attrs.update({'placeholder': 'Ej: juanito2024'})
+        if 'password' in form.fields:
+            form.fields['password'].widget.attrs.update({'placeholder': 'Su contraseña'})
         return form
 
-class HomeView(TemplateView):
-    template_name = 'home.html'
+    def form_valid(self, form):
+        messages.success(self.request, "Sesión iniciada exitosamente.")
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, "Revise usuario y contraseña.")
+        return super().form_invalid(form)
 
 class AnnouncementVoteView(LoginRequiredMixin, View):
     def post(self, request, pk):
@@ -164,6 +279,9 @@ class AnnouncementCommentView(LoginRequiredMixin, CreateView):
         form.instance.announcement_id = self.kwargs['pk']
         return super().form_valid(form)
 
+    def get_success_url(self):
+        return reverse_lazy('noticias')
+
 class ParentProfileView(LoginRequiredMixin, TemplateView):
     template_name = 'registration/parent_profile.html'
 
@@ -175,42 +293,38 @@ class ParentProfileView(LoginRequiredMixin, TemplateView):
 
 class ParentPaymentView(LoginRequiredMixin, CreateView):
     model = Transaction
-    form_class = TransactionForm
-    template_name = 'treasury/create_transaction.html'
-    success_url = reverse_lazy('parent_profile')
-    
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['is_admin_view'] = False
-        return kwargs
+    form_class = ParentPaymentForm
+    template_name = 'treasury/parent_payment.html'
+    success_url = reverse_lazy('noticias')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['goal'].queryset = FinancialGoal.objects.filter(is_completed=False)
+        return form
 
     def form_invalid(self, form):
         messages.error(self.request, f"Error al guardar: {form.errors}")
         return super().form_invalid(form)
-    
-    def form_valid(self, form):
-        # Aseguramos que los campos ocultos se asignen correctamente
-        form.instance.parent = self.request.user
-        form.instance.transaction_type = 'INCOME' # Forzado a Ingreso
-        form.instance.recorded_by = self.request.user
-        
-        # Validar límite máximo por padre en la meta seleccionada
-        goal = form.cleaned_data.get('goal')
-        if goal:
-            total_user_contrib = Transaction.objects.filter(
-                goal=goal, parent=self.request.user
-            ).aggregate(total=Sum('amount_divisa'))['total'] or Decimal('0')
-            
-            amount = form.cleaned_data.get('amount') or 0
-            tasa = form.cleaned_data.get('tasa_bcv') or 1
-            new_amount = amount / tasa
-            
-            if total_user_contrib + new_amount > goal.max_per_parent:
-                if total_user_contrib >= goal.max_per_parent:
-                     messages.error(self.request, "Usted ya abonó lo que tenía que aportar para la meta.")
-                else:
-                     messages.error(self.request, f"Este abono supera el límite máximo permitido por padre para esta meta (${goal.max_per_parent}).")
-                return self.form_invalid(form)
 
-        messages.success(self.request, "Transacción guardada exitosamente.")
+    def form_valid(self, form):
+        form.instance.parent = self.request.user
+        form.instance.transaction_type = 'INCOME'
+        form.instance.recorded_by = self.request.user
+        form.instance.is_confirmed = False
+        messages.success(self.request, "Abono enviado. Pendiente de confirmación por tesorería.")
         return super().form_valid(form)
+
+class PendingPaymentsView(RoleRequiredMixin, ListView):
+    model = Transaction
+    template_name = 'treasury/pending_payments.html'
+    context_object_name = 'pending_payments'
+    allowed_roles = ['TREASURER', 'ADMIN']
+
+    def get_queryset(self):
+        return Transaction.objects.filter(is_confirmed=False, transaction_type='INCOME').order_by('-created_at')
+
+class ConfirmPaymentView(RoleRequiredMixin, View):
+    allowed_roles = ['TREASURER', 'ADMIN']
+
+    def post(self, request, pk):
+        return redirect('transaction_detail', pk=pk)

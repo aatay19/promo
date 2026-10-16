@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 max-w-md mx-auto">
+    <h2 class="text-2xl font-extrabold mb-4 text-center">Confirmar Eliminación</h2>
+    <p class="text-center text-slate-600 mb-6">¿Estás seguro de eliminar la meta "{{ object.title }}"?</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="flex gap-3 justify-center">
+            <a href="{% url 'treasury' %}" class="btn btn-ghost">Cancelar</a>
+            <button type="submit" class="btn btn-error">Eliminar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

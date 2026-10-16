@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card bg-white shadow-2xl p-8 border border-slate-100 max-w-md mx-auto">
+    <h2 class="text-3xl font-extrabold text-slate-900 mb-6 text-center">Subir Comprobante de Abono</h2>
+    <p class="text-sm text-slate-500 mb-6 text-center">Selecciona la meta y sube la captura de tu comprobante. La tesorería verificará tu pago.</p>
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-control w-full">
+                <label class="label font-semibold text-slate-700">{{ field.label }}</label>
+                {{ field }}
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary w-full mt-6 text-lg">Enviar Comprobante</button>
+    </form>
+</div>
+{% endblock %}

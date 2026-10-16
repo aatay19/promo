@@ -22,6 +22,9 @@
                 <!-- Menu para pantallas medianas/grandes -->
                 <div class="hidden md:flex menu menu-horizontal px-1 gap-2">
                     <li><a href="{% url 'noticias' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Noticias</a></li>
+                    <li>
+                        <label for="historial-modal" class="hover:bg-slate-800 rounded-lg py-2 px-3 cursor-pointer">Historial</label>
+                    </li>
                     <li><a href="{% url 'treasury' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Tesorería</a></li>
                     <li><a href="{% url 'parent_profile' %}" class="hover:bg-slate-800 rounded-lg py-2 px-3">Perfil</a></li>
                     {% if user.role == 'ADMIN' %}
@@ -34,7 +37,8 @@
                     <label tabindex="0" class="btn btn-ghost btn-sm">☰</label>
                     <ul tabindex="0" class="menu dropdown-content mt-3 z-[1] p-2 shadow bg-slate-800 rounded-box w-52 text-white">
                         <li><a href="{% url 'noticias' %}">Noticias</a></li>
-                        <li><a href="{% url 'treasury' %}">Resumen Tesorería</a></li>
+                        <li><label for="historial-modal">Historial Noticias</label></li>
+                        <li><a href="{% url 'treasury' %}">Tesorería</a></li>
                         <li><a href="{% url 'parent_profile' %}">Perfil</a></li>
                         {% if user.role == 'ADMIN' %}
                             <li><a href="{% url 'user_list' %}">Usuarios</a></li>
@@ -68,6 +72,28 @@
 
     <!-- Toast Container (Global) -->
     <div id="toast-container" class="toast toast-bottom toast-end z-50"></div>
+
+    <!-- Modal Historial Noticias -->
+    <input type="checkbox" id="historial-modal" class="modal-toggle" />
+    <div class="modal">
+        <div class="modal-box w-11/12 max-w-4xl">
+            <h3 class="font-bold text-lg mb-4">Historial de Noticias</h3>
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto">
+                {% for noticia in todas_las_noticias %}
+                <div class="border-b pb-2">
+                    <h4 class="font-bold">{{ noticia.title }}</h4>
+                    <p class="text-sm text-slate-600">{{ noticia.content|truncatewords:20 }}</p>
+                    <small class="text-xs text-slate-400">{{ noticia.created_at|date:"d/m/Y" }}</small>
+                </div>
+                {% empty %}
+                <p>No hay noticias históricas.</p>
+                {% endfor %}
+            </div>
+            <div class="modal-action">
+                <label for="historial-modal" class="btn">Cerrar</label>
+            </div>
+        </div>
+    </div>
 
     <footer class="footer p-4 bg-slate-900 text-slate-400 justify-center">
         <p>Gestión 6to Grado - 2026</p>

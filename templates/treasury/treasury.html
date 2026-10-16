@@ -5,7 +5,8 @@
     {% if user.role == 'ADMIN' or user.role == 'TREASURER' %}
     <div class="flex gap-2">
         <a href="{% url 'create_goal' %}" class="btn btn-secondary">Crear Meta</a>
-        <a href="{% url 'create_transaction' %}" class="btn btn-primary">Registrar Transacción</a>
+        <a href="{% url 'create_transaction' %}" class="btn btn-primary">Registrar Ingreso</a>
+        <a href="{% url 'create_expense' %}" class="btn btn-error">Registrar Gasto</a>
     </div>
     {% endif %}
 </div>
@@ -30,7 +31,10 @@
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     {% for goal in goals %}
     <div class="card bg-white p-6 shadow">
-        <h3 class="font-bold text-lg">{{ goal.title }}</h3>
+        <div class="flex justify-between items-start">
+            <h3 class="font-bold text-lg">{{ goal.title }}</h3>
+            <a href="{% url 'goal_delete' goal.id %}" class="btn btn-xs btn-error">Eliminar</a>
+        </div>
         <progress class="progress progress-primary w-full" value="{{ goal.progress_percentage }}" max="100"></progress>
         <p class="text-sm mt-2">${{ goal.current_amount|floatformat:2 }} / ${{ goal.target_amount|floatformat:2 }}</p>
     </div>
@@ -40,16 +44,32 @@
 <div class="card bg-white shadow-2xl p-6">
     <h2 class="text-2xl font-bold mb-4">Últimas Transacciones</h2>
     <table class="table w-full">
-        <thead><tr><th>Fecha</th><th>Padre</th><th>Descripción</th><th>Monto (Divisa)</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Padre/Tipo</th><th>Descripción</th><th>Tasa BCV</th><th>Monto (Divisa)</th><th>Acciones</th></tr></thead>
         <tbody>
             {% for trans in transactions %}
             <tr>
                 <td>{{ trans.created_at|date:"d/m/Y" }}</td>
-                <td>{{ trans.parent.first_name }}</td>
+                <td>{{ trans.parent.first_name }} <span class="badge badge-{% if trans.transaction_type == 'INCOME' %}success{% else %}error{% endif %}">{{ trans.get_transaction_type_display }}</span></td>
                 <td>{{ trans.description }}</td>
+                <td>{{ trans.tasa_bcv }}</td>
                 <td>${{ trans.amount_divisa|floatformat:2 }}</td>
                 <td class="flex gap-2">
-                    <a href="{% url 'transaction_detail' trans.id %}" class="btn btn-xs btn-info">Ver</a>
+                    {% if trans.receipt_file %}
+                    <label for="receipt-modal-{{trans.id}}" class="btn btn-xs btn-info" title="Ver imagen">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke-width="2" stroke-linecap="round"/></svg>
+                    </label>
+                    <input type="checkbox" id="receipt-modal-{{trans.id}}" class="modal-toggle" />
+                    <div class="modal">
+                        <div class="modal-box p-0 w-11/12 max-w-3xl">
+                            <img src="{{ trans.receipt_file.url }}" alt="Comprobante" class="w-full h-auto">
+                            <div class="modal-action absolute top-0 right-0 p-2">
+                                <label for="receipt-modal-{{trans.id}}" class="btn btn-circle btn-sm bg-white">✕</label>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-slate-400">Sin imagen</span>
+                    {% endif %}
                     <a href="{% url 'transaction_edit' trans.id %}" class="btn btn-xs btn-warning">Editar</a>
                     <a href="{% url 'transaction_delete' trans.id %}" class="btn btn-xs btn-error">Eliminar</a>
                 </td>
