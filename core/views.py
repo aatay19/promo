@@ -7,7 +7,7 @@ from django.contrib.auth.views import LoginView
 from django.views.generic import View, ListView, CreateView, TemplateView, DeleteView, UpdateView
 from django.urls import reverse_lazy
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from .models import Announcement, AnnouncementVote, AnnouncementComment, Student, ParentStudentRel, CustomUser, Transaction, FinancialGoal
 from .forms import SignUpForm, AnnouncementForm, UserUpdateForm, TransactionForm, FinancialGoalForm, ParentPaymentForm, ExpenseForm
 
@@ -153,6 +153,25 @@ class TransactionCreateView(RoleRequiredMixin, CreateView):
         form.instance.recorded_by = self.request.user
         messages.success(self.request, "Transacción registrada exitosamente.")
         return super().form_valid(form)
+
+class ParentPendingReceiptView(RoleRequiredMixin, View):
+    allowed_roles = ['TREASURER', 'ADMIN']
+
+    def get(self, request, pk):
+        transaction = Transaction.objects.filter(
+            parent_id=pk, transaction_type='INCOME', is_confirmed=False
+        ).exclude(receipt_file='').order_by('-created_at').first()
+        if not transaction:
+            return JsonResponse({'found': False})
+        return JsonResponse({
+            'found': True,
+            'id': transaction.pk,
+            'url': transaction.receipt_file.url,
+            'amount': str(transaction.amount or ''),
+            'goal': transaction.goal.title if transaction.goal else 'Sin meta',
+            'date': transaction.created_at.strftime('%d/%m/%Y %H:%M'),
+            'detail_url': reverse_lazy('transaction_detail', kwargs={'pk': transaction.pk}),
+        })
 
 class ExpenseCreateView(RoleRequiredMixin, CreateView):
     model = Transaction

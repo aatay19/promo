@@ -134,3 +134,10 @@ class Transaction(models.Model):
         tasa = self.tasa_bcv or Decimal('1')
         self.amount_divisa = amount / tasa if tasa != 0 else Decimal('0')
         super().save(*args, **kwargs)
+
+    @property
+    def student_names(self):
+        return ", ".join(
+            f"{rel.student.first_name} {rel.student.last_name}".strip()
+            for rel in self.parent.parentstudentrel_set.select_related('student')
+        )

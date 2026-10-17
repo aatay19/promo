@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     AnnouncementVoteView, AnnouncementCommentView, SignUpView, CustomLoginView, 
-    NoticiasView, AnnouncementCreateView, UserListView, UserDeleteView, UserUpdateView, TreasuryView, TransactionCreateView, ExpenseCreateView, TransactionUpdateView, TransactionDeleteView, TransactionDetailView, FinancialGoalCreateView, FinancialGoalDeleteView, ParentProfileView, ParentPaymentView, PendingPaymentsView, ConfirmPaymentView
+    NoticiasView, AnnouncementCreateView, UserListView, UserDeleteView, UserUpdateView, TreasuryView, TransactionCreateView, ExpenseCreateView, TransactionUpdateView, TransactionDeleteView, TransactionDetailView, FinancialGoalCreateView, FinancialGoalDeleteView, ParentProfileView, ParentPaymentView, PendingPaymentsView, ConfirmPaymentView, ParentPendingReceiptView
 )
 from django.contrib.auth.views import LogoutView
 
@@ -12,6 +12,7 @@ urlpatterns = [
     path('noticias/', NoticiasView.as_view(), name='noticias'),
     path('tesoreria/', TreasuryView.as_view(), name='treasury'),
     path('tesoreria/crear-transaccion/', TransactionCreateView.as_view(), name='create_transaction'),
+    path('tesoreria/padre/<int:pk>/abono-pendiente/', ParentPendingReceiptView.as_view(), name='parent_pending_receipt'),
     path('tesoreria/crear-gasto/', ExpenseCreateView.as_view(), name='create_expense'),
     path('tesoreria/<int:pk>/', TransactionDetailView.as_view(), name='transaction_detail'),
     path('tesoreria/<int:pk>/editar/', TransactionUpdateView.as_view(), name='transaction_edit'),

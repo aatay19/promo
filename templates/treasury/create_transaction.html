@@ -2,7 +2,7 @@
 {% block content %}
 <div class="card bg-white shadow-2xl p-8 border border-slate-100 max-w-lg mx-auto">
     <h2 class="text-3xl font-extrabold text-slate-900 mb-6 text-center">Registrar Transacción</h2>
-    <form method="post" enctype="multipart/form-data" class="space-y-4" id="transactionForm">
+    <form method="post" enctype="multipart/form-data" class="space-y-4" id="transactionForm" data-pending-url="{% url 'parent_pending_receipt' 0 %}">
         {% csrf_token %}
         {% for field in form %}
             <div class="form-control w-full">
@@ -10,6 +10,12 @@
                 {{ field }}
             </div>
         {% endfor %}
+        <div id="pendingReceipt" class="hidden border border-yellow-300 bg-yellow-50 rounded-lg p-4 space-y-2">
+            <p class="font-bold text-yellow-800">Este padre tiene un abono pendiente por confirmar</p>
+            <p class="text-sm text-slate-600" id="pendingMeta"></p>
+            <img id="pendingImage" src="" alt="Comprobante del abono pendiente" class="rounded-lg shadow max-h-64 w-auto">
+            <a id="pendingLink" href="#" class="btn btn-sm btn-warning">Ver / Confirmar abono</a>
+        </div>
         <button type="submit" class="btn btn-primary w-full mt-6 text-lg">Guardar Transacción</button>
     </form>
 </div>
@@ -19,6 +25,11 @@
     const amountInput = form.querySelector('[name="amount"]');
     const tasaInput = form.querySelector('[name="tasa_bcv"]');
     const divisaInput = form.querySelector('[name="monto_divisas"]');
+    const parentSelect = form.querySelector('[name="parent"]');
+    const pendingBox = document.getElementById('pendingReceipt');
+    const pendingImage = document.getElementById('pendingImage');
+    const pendingMeta = document.getElementById('pendingMeta');
+    const pendingLink = document.getElementById('pendingLink');
 
     function calculate() {
         const amount = parseFloat(amountInput.value) || 0;
@@ -32,5 +43,27 @@
 
     amountInput.addEventListener('input', calculate);
     tasaInput.addEventListener('input', calculate);
+
+    function checkPendingAbono() {
+        const parentId = parentSelect ? parentSelect.value : '';
+        pendingBox.classList.add('hidden');
+        if (!parentId) return;
+        const url = form.dataset.pendingUrl.replace('/0/', `/${parentId}/`);
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.found) return;
+                pendingImage.src = data.url;
+                pendingLink.href = data.detail_url;
+                pendingMeta.textContent = `Meta: ${data.goal} · Fecha: ${data.date}`;
+                pendingBox.classList.remove('hidden');
+            })
+            .catch(() => {});
+    }
+
+    if (parentSelect) {
+        parentSelect.addEventListener('change', checkPendingAbono);
+        checkPendingAbono();
+    }
 </script>
 {% endblock %}

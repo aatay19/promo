@@ -71,6 +71,18 @@ class TransactionForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={'class': 'input input-bordered w-full', 'readonly': 'readonly'})
     )
 
+    @staticmethod
+    def _parent_label(obj, pending=False):
+        parent_name = f"{obj.first_name} {obj.last_name}".strip()
+        student_names = ", ".join(
+            f"{rel.student.first_name} {rel.student.last_name}".strip()
+            for rel in obj.parentstudentrel_set.select_related('student')
+        )
+        label = f"{student_names} - {parent_name}" if student_names else parent_name
+        if pending:
+            label = f"{label} (abono por confirmar)"
+        return label
+
     def __init__(self, *args, **kwargs):
         is_admin_view = kwargs.pop('is_admin_view', False)
         super().__init__(*args, **kwargs)
@@ -86,8 +98,14 @@ class TransactionForm(forms.ModelForm):
 
         # Configuración del selector de padres
         if 'parent' in self.fields:
+            pending_parent_ids = set(
+                Transaction.objects.filter(transaction_type='INCOME', is_confirmed=False)
+                .values_list('parent_id', flat=True)
+            )
             self.fields['parent'].queryset = CustomUser.objects.filter(role='PARENT')
-            self.fields['parent'].label_from_instance = lambda obj: f"{obj.first_name} {obj.last_name}"
+            self.fields['parent'].label_from_instance = (
+                lambda obj: self._parent_label(obj, obj.id in pending_parent_ids)
+            )
             
             # Si no es vista de admin, ocultamos los campos
             if not is_admin_view:

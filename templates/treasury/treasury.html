@@ -44,11 +44,12 @@
 <div class="card bg-white shadow-2xl p-6">
     <h2 class="text-2xl font-bold mb-4">Últimas Transacciones</h2>
     <table class="table w-full">
-        <thead><tr><th>Fecha</th><th>Padre/Tipo</th><th>Descripción</th><th>Tasa BCV</th><th>Monto (Divisa)</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Niño</th><th>Padre/Tipo</th><th>Descripción</th><th>Tasa BCV</th><th>Monto (Divisa)</th><th>Acciones</th></tr></thead>
         <tbody>
             {% for trans in transactions %}
             <tr>
                 <td>{{ trans.created_at|date:"d/m/Y" }}</td>
+                <td>{% if trans.student_names %}{{ trans.student_names }}{% else %}<span class="text-xs text-slate-400">—</span>{% endif %}</td>
                 <td>{{ trans.parent.first_name }} <span class="badge badge-{% if trans.transaction_type == 'INCOME' %}success{% else %}error{% endif %}">{{ trans.get_transaction_type_display }}</span></td>
                 <td>{{ trans.description }}</td>
                 <td>{{ trans.tasa_bcv }}</td>
