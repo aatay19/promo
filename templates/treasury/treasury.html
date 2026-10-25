@@ -11,7 +11,7 @@
     {% endif %}
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
     <div class="card bg-green-100 p-6 text-green-900 shadow">
         <h3 class="text-lg font-bold">Total Ingresos</h3>
         <p class="text-3xl font-extrabold">${{ income|floatformat:2 }}</p>
@@ -23,6 +23,10 @@
     <div class="card bg-blue-100 p-6 text-blue-900 shadow">
         <h3 class="text-lg font-bold">Balance General</h3>
         <p class="text-3xl font-extrabold">${{ balance|floatformat:2 }}</p>
+    </div>
+    <div class="card bg-purple-100 p-6 text-purple-900 shadow">
+        <h3 class="text-lg font-bold">Padres Registrados</h3>
+        <p class="text-3xl font-extrabold">{{ total_parents }}</p>
     </div>
 </div>
 
@@ -42,7 +46,26 @@
 </div>
 
 <div class="card bg-white shadow-2xl p-6">
-    <h2 class="text-2xl font-bold mb-4">Últimas Transacciones</h2>
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <h2 class="text-2xl font-bold">Últimas Transacciones</h2>
+        <form method="get" action="" class="flex items-center gap-2">
+            <input
+                type="text"
+                name="q"
+                id="transaction-search"
+                value="{{ search_query }}"
+                placeholder="Buscar por niño o padre/representante..."
+                class="input input-bordered input-sm w-full md:w-72"
+            >
+            <button type="submit" class="btn btn-sm btn-primary">Buscar</button>
+            {% if search_query %}
+            <a href="{% url 'treasury' %}" class="btn btn-sm btn-ghost">✕ Limpiar</a>
+            {% endif %}
+        </form>
+    </div>
+    {% if search_query %}
+    <p class="text-sm text-slate-500 mb-3">Resultados para: <strong>"{{ search_query }}"</strong></p>
+    {% endif %}
     <table class="table w-full">
         <thead><tr><th>Fecha</th><th>Niño</th><th>Padre/Tipo</th><th>Descripción</th><th>Tasa BCV</th><th>Monto (Divisa)</th><th>Acciones</th></tr></thead>
         <tbody>
@@ -64,7 +87,7 @@
                         <div class="modal-box p-0 w-11/12 max-w-3xl">
                             <img src="{{ trans.receipt_file.url }}" alt="Comprobante" class="w-full h-auto">
                             <div class="modal-action absolute top-0 right-0 p-2">
-                                <label for="receipt-modal-{{trans.id}}" class="btn btn-circle btn-sm bg-white">✕</label>
+                                <label for="receipt-modal-{{trans.id}}" class="btn btn-circle btn-sm bg-white">X</label>
                             </div>
                         </div>
                     </div>
@@ -78,7 +101,30 @@
             {% endfor %}
         </tbody>
     </table>
+
+    {% if is_paginated %}
+    <div class="flex justify-center items-center gap-2 mt-6">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline">Primera</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline">Anterior</a>
+        {% else %}
+            <button class="btn btn-sm btn-outline" disabled>Primera</button>
+            <button class="btn btn-sm btn-outline" disabled>Anterior</button>
+        {% endif %}
+
+        <span class="px-4 py-2 text-sm font-semibold">
+            Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline">Siguiente</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-outline">Ultima</a>
+        {% else %}
+            <button class="btn btn-sm btn-outline" disabled>Siguiente</button>
+            <button class="btn btn-sm btn-outline" disabled>Ultima</button>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}
-

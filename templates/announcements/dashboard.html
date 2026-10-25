@@ -104,39 +104,94 @@
         </div>
         {% endif %}
 
-        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-4 sticky top-20">
-            {% if active_goal %}
-                <h3 class="font-bold text-lg mb-2">{{ active_goal.title }}</h3>
-                <p class="text-sm text-slate-500 mb-4">
-                    Meta: ${{ active_goal.target_amount|floatformat:2 }}
-                </p>
-            {% endif %}
+        {% if user.role == 'PARENT' %}
+        <a href="{% url 'parent_payment' %}" class="btn btn-primary w-full">Abonar</a>
+        {% endif %}
 
-            {% if user.role == 'PARENT' %}
-            <a href="{% url 'parent_payment' %}" class="btn btn-primary w-full mb-4">Abonar</a>
-            {% endif %}
+        {% if goals_with_parents %}
+        <div class="space-y-3">
+            {% for item in goals_with_parents %}
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+                <!-- Cabecera de la meta: click para expandir/colapsar -->
+                <button type="button"
+                    onclick="toggleGoal('goal-{{ item.goal.id }}')"
+                    class="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-sm text-slate-800 truncate">{{ item.goal.title }}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <progress class="progress {% if item.goal.progress_percentage >= 100 %}progress-success{% else %}progress-primary{% endif %} w-28 h-2"
+                                value="{{ item.goal.progress_percentage }}" max="100"></progress>
+                            <span class="text-xs text-slate-500 whitespace-nowrap">
+                                ${{ item.goal.current_amount|floatformat:2 }} / ${{ item.goal.target_amount|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                    <svg id="arrow-goal-{{ item.goal.id }}" class="w-5 h-5 text-slate-400 ml-2 flex-shrink-0 transform transition-transform duration-200"
+                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
 
-            <h4 class="font-semibold text-sm text-slate-700 mb-2">Estado de Abonos</h4>
-            <div class="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                {% for parent in parents_status %}
-                <div class="flex justify-between items-center text-sm p-2 bg-slate-50 rounded">
-                    <span>{{ parent.name }}</span>
-                    <span class="flex items-center gap-2">
-                        {% if parent.status == 'confirmed' %}
-                            <span class="text-green-600 font-semibold">${{ parent.total_paid|floatformat:2 }}</span>
-                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        {% elif parent.status == 'pending' %}
-                            <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        {% else %}
-                            <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                        {% endif %}
-                    </span>
+                <!-- Lista de abonos (colapsable) -->
+                <div id="goal-{{ item.goal.id }}" class="hidden border-t border-slate-100">
+                    <div class="p-3 space-y-1 max-h-[260px] overflow-y-auto">
+                        <!-- Leyenda -->
+                        <div class="flex gap-4 text-[11px] text-slate-400 font-semibold pb-1 border-b border-slate-100 mb-2">
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg> Confirmado
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Pendiente
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg> Sin abonar
+                            </span>
+                        </div>
+                        {% for parent in item.parents_status %}
+                        <div class="flex justify-between items-center text-sm py-1.5 px-2
+                            {% if parent.status == 'confirmed' %}bg-green-50 border border-green-100{% elif parent.status == 'pending' %}bg-yellow-50 border border-yellow-100{% else %}bg-red-50 border border-red-100{% endif %}
+                            rounded-lg">
+                            <span class="truncate text-slate-700 font-medium max-w-[60%]">{{ parent.name }}</span>
+                            <span class="flex items-center gap-1.5 flex-shrink-0">
+                                {% if parent.status == 'confirmed' %}
+                                    <span class="text-green-700 font-bold text-xs">${{ parent.total_paid|floatformat:2 }}</span>
+                                    <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                {% elif parent.status == 'pending' %}
+                                    <span class="text-yellow-700 font-semibold text-xs">Pendiente</span>
+                                    <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                {% else %}
+                                    <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% empty %}
+                        <p class="text-sm text-slate-400 italic text-center py-2">No hay padres registrados.</p>
+                        {% endfor %}
+                    </div>
                 </div>
-                {% empty %}
-                <p class="text-sm text-slate-400 italic">No hay padres registrados.</p>
-                {% endfor %}
             </div>
+            {% endfor %}
         </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleGoal(id) {
+    const panel = document.getElementById(id);
+    const arrow = document.getElementById('arrow-' + id);
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !isHidden);
+    if (arrow) {
+        arrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+// Abrir la primera meta por defecto si existe
+document.addEventListener('DOMContentLoaded', function() {
+    const firstBtn = document.querySelector('[onclick^="toggleGoal"]');
+    if (firstBtn) firstBtn.click();
+});
+</script>
 {% endblock %}

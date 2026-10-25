@@ -8,6 +8,7 @@ from django.views.generic import View, ListView, CreateView, TemplateView, Delet
 from django.urls import reverse_lazy
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
+from django.core.paginator import Paginator
 from .models import Announcement, AnnouncementVote, AnnouncementComment, Student, ParentStudentRel, CustomUser, Transaction, FinancialGoal
 from .forms import SignUpForm, AnnouncementForm, UserUpdateForm, TransactionForm, FinancialGoalForm, ParentPaymentForm, ExpenseForm
 
@@ -57,22 +58,21 @@ class NoticiasView(LoginRequiredMixin, ListView):
         context['expense'] = expense
         context['balance'] = income - expense
         
-        # Obtener la meta activa (primera no completada)
-        active_goal = FinancialGoal.objects.filter(is_completed=False).first()
-        context['active_goal'] = active_goal
-        
-        # Todos los padres registrados con su estado de abono
+        # Obtener todas las metas activas con su estado de abono por padre
+        active_goals = FinancialGoal.objects.filter(is_completed=False)
         all_parents = CustomUser.objects.filter(role='PARENT').order_by('first_name')
-        parents_with_status = []
-        for parent in all_parents:
-            status = 'none'
-            total_paid = Decimal('0')
-            if active_goal:
+
+        goals_with_parents = []
+        for goal in active_goals:
+            parents_with_status = []
+            for parent in all_parents:
+                status = 'none'
+                total_paid = Decimal('0')
                 confirmed = Transaction.objects.filter(
-                    goal=active_goal, parent=parent, transaction_type='INCOME', is_confirmed=True
+                    goal=goal, parent=parent, transaction_type='INCOME', is_confirmed=True
                 ).first()
                 pending = Transaction.objects.filter(
-                    goal=active_goal, parent=parent, transaction_type='INCOME', is_confirmed=False
+                    goal=goal, parent=parent, transaction_type='INCOME', is_confirmed=False
                 ).first()
                 if confirmed:
                     status = 'confirmed'
@@ -80,13 +80,19 @@ class NoticiasView(LoginRequiredMixin, ListView):
                 elif pending:
                     status = 'pending'
                     total_paid = pending.amount_divisa
-            parents_with_status.append({
-                'id': parent.id,
-                'name': f"{parent.first_name} {parent.last_name}",
-                'status': status,
-                'total_paid': total_paid,
+                parents_with_status.append({
+                    'id': parent.id,
+                    'name': f"{parent.first_name} {parent.last_name}",
+                    'status': status,
+                    'total_paid': total_paid,
+                })
+            goals_with_parents.append({
+                'goal': goal,
+                'parents_status': parents_with_status,
             })
-        context['parents_status'] = parents_with_status
+        context['goals_with_parents'] = goals_with_parents
+        # Mantener active_goal para compatibilidad (primera meta activa)
+        context['active_goal'] = active_goals.first()
         
         # Pagos pendientes para admin/tesorero
         if self.request.user.role in ['ADMIN', 'TREASURER']:
@@ -95,28 +101,51 @@ class NoticiasView(LoginRequiredMixin, ListView):
             context['pending_count'] = 0
         
         return context
-class TreasuryView(LoginRequiredMixin, TemplateView):
+class TreasuryView(LoginRequiredMixin, View):
     template_name = 'treasury/treasury.html'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
+    def get(self, request, *args, **kwargs):
         income = Transaction.objects.filter(transaction_type='INCOME', is_confirmed=True).aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
         expense = Transaction.objects.filter(transaction_type='EXPENSE', is_confirmed=True).aggregate(Sum('amount_divisa'))['amount_divisa__sum'] or Decimal('0')
-        
-        context['income'] = income
-        context['expense'] = expense
-        context['balance'] = income - expense
-        
+
+        total_parents = CustomUser.objects.filter(role='PARENT').count()
+
+        context = {
+            'income': income,
+            'expense': expense,
+            'balance': income - expense,
+            'total_parents': total_parents,
+        }
+
         # Solo mostrar transacciones detalladas y metas si es Admin/Tesorero
-        if self.request.user.role in ['ADMIN', 'TREASURER']:
-            context['transactions'] = Transaction.objects.filter(is_confirmed=True).order_by('-created_at')[:10]
+        if request.user.role in ['ADMIN', 'TREASURER']:
+            search_query = request.GET.get('q', '').strip()
+            all_transactions = Transaction.objects.filter(is_confirmed=True).order_by('-created_at')
+
+            if search_query:
+                from django.db.models import Q
+                all_transactions = all_transactions.filter(
+                    Q(parent__first_name__icontains=search_query) |
+                    Q(parent__last_name__icontains=search_query) |
+                    Q(parent__parentstudentrel__student__first_name__icontains=search_query) |
+                    Q(parent__parentstudentrel__student__last_name__icontains=search_query)
+                ).distinct()
+
+            paginator = Paginator(all_transactions, 15)
+            page_number = request.GET.get('page')
+            page_obj = paginator.get_page(page_number)
+
+            context['transactions'] = page_obj
+            context['page_obj'] = page_obj
+            context['is_paginated'] = paginator.num_pages > 1
             context['goals'] = FinancialGoal.objects.all()
+            context['search_query'] = search_query
         else:
             context['transactions'] = None
             context['goals'] = None
-            
-        return context
+
+        return render(request, self.template_name, context)
+
 
 class FinancialGoalCreateView(RoleRequiredMixin, CreateView):
     model = FinancialGoal
